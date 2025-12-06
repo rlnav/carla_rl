@@ -1,0 +1,58 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.env
+.venv/
+venv/
+ENV/
+env/
+.env*
+
+# Testing
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.cache
+htmlcov/
+.nose/
+.nox/
+
+# IDEs (VSCode, PyCharm)
+.vscode/*
+!.vscode/settings.json
+.idea/
+.spyproject
+.spyderproject
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / Temp
+*.log
+tmp/
+temp/
+
+uv.lock
