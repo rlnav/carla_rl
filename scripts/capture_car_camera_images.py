@@ -9,6 +9,9 @@ import cv2
 from datetime import datetime
 
 
+IM_WIDTH = 640
+IM_HEIGHT = 480
+
 def process_img(image, output_folder="captured_images"):
     # Convert CARLA raw data to numpy array
     array = np.frombuffer(image.raw_data, dtype=np.uint8)
@@ -64,8 +67,8 @@ def main():
     # Create a camera
     try:
         camera_bp = blueprint_library.find("sensor.camera.rgb")
-        camera_bp.set_attribute("image_size_x", "800")
-        camera_bp.set_attribute("image_size_y", "600")
+        camera_bp.set_attribute("image_size_x", str(IM_WIDTH))
+        camera_bp.set_attribute("image_size_y", str(IM_HEIGHT))
         camera_bp.set_attribute("fov", "90")
 
         # Place camera in front of car
@@ -77,19 +80,27 @@ def main():
         vehicle.destroy()
         return
 
-    # Enable autopilot (CARLA 0.10 compatible)
+    # # Enable autopilot (CARLA 0.10 compatible)
+    # try:
+    #     vehicle.set_autopilot(True)
+    #     print("Autopilot enabled")
+    # except Exception as e:
+    #     print(f"Warning: Could not enable autopilot: {e}")
+
+    # Control the car
     try:
-        vehicle.set_autopilot(True)
-        print("Autopilot enabled")
+        throttle, steer = 1.0, 0.0
+        vehicle.apply_control(carla.VehicleControl(throttle=throttle, steer=steer))
+        print(f"Controing the car with throttle: {throttle} and steer: {steer}")
     except Exception as e:
-        print(f"Warning: Could not enable autopilot: {e}")
+        print(f"Warning: Could not control the car: {e}")
 
     # Start capturing images
     output_folder = f"outputs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}"
     os.makedirs(output_folder, exist_ok=True)
     try:
         camera.listen(lambda image: process_img(image, output_folder))
-        print("Camera started capturing images")
+        print(f"Camera started capturing images and saving to {output_folder}")
     except Exception as e:
         print(f"Error starting camera listener: {e}")
         camera.destroy()
