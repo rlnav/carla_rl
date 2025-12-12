@@ -7,15 +7,15 @@ import math
 import numpy as np
 import cv2
 
-from carla_navigation.src.config import *
+from carla_rl.src.config import *
 
 
 class CarEnv:
-    SHOW_CAM = SHOW_PREVIEW
-    STEER_AMT = 1.0
+    show_cam = SHOW_PREVIEW
+    steer_amt = 1.0
 
-    im_width = IMG_WIDTH
-    im_height = IMG_HEIGHT
+    img_width = IMG_WIDTH
+    img_height = IMG_HEIGHT
     actor_list = []
 
     front_camera = None
@@ -48,11 +48,11 @@ class CarEnv:
 
         self.rgb_cam = self.world.get_blueprint_library().find('sensor.camera.rgb')
 
-        self.rgb_cam.set_attribute('image_size_x', f'{self.im_width}')
-        self.rgb_cam.set_attribute('image_size_y', f'{self.im_height}')
+        self.rgb_cam.set_attribute('image_size_x', f'{self.img_width}')
+        self.rgb_cam.set_attribute('image_size_y', f'{self.img_height}')
         self.rgb_cam.set_attribute('fov', '110')
 
-        transform = carla.Transform(carla.Location(x=2.5, z=0.7))
+        transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.sensor = self.world.spawn_actor(self.rgb_cam, transform, attach_to=self.vehicle)
 
         self.actor_list.append(self.sensor)
@@ -80,12 +80,9 @@ class CarEnv:
 
     def process_img(self, image):
         i = np.array(image.raw_data)
-        #np.save("iout.npy", i)
-        i2 = i.reshape((self.im_height, self.im_width, 4))
+        # np.save("iout.npy", i)
+        i2 = i.reshape((self.img_height, self.img_width, 4))
         i3 = i2[:, :, :3]
-        if self.SHOW_CAM:
-            cv2.imshow("",i3)
-            cv2.waitKey(1)
         self.front_camera = i3
 
     def step(self, action):
@@ -94,18 +91,18 @@ class CarEnv:
         0, 1, 2
         '''
         if action == 0:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=0))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=-1*self.steer_amt))
         if action == 1:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=-1*self.STEER_AMT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=0))
         if action == 2:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=1*self.STEER_AMT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=1*self.steer_amt))
 
         v = self.vehicle.get_velocity()
         kmh = int(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
 
         if len(self.collision_hist) != 0:
             done = True
-            reward = -200
+            reward = MIN_REWARD
         elif kmh < 50:
             done = False
             reward = -1

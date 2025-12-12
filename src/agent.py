@@ -10,8 +10,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.models as models
 
-from carla_navigation.src.config import *
-from carla_navigation.src.logging import ModifiedTensorBoard
+from carla_rl.src.config import *
+from carla_rl.src.logging import ModifiedTensorBoard
 
 
 class MobileNetV2DQN(nn.Module):
@@ -74,10 +74,10 @@ class DQNAgent:
 
         # Extract states and convert to tensors
         current_states = np.array([transition[0] for transition in minibatch]) / 255.0
-        current_states = torch.FloatTensor(current_states).permute(0, 3, 1, 2).to(self.device)
+        current_states = torch.FloatTensor(current_states).permute(0, 3, 1, 2).to(self.device)  # (B, C, H, W) images
         
         new_states = np.array([transition[3] for transition in minibatch]) / 255.0
-        new_states = torch.FloatTensor(new_states).permute(0, 3, 1, 2).to(self.device)
+        new_states = torch.FloatTensor(new_states).permute(0, 3, 1, 2).to(self.device)  # (B, C, H, W) images
 
         # Get Q values for current states
         with torch.no_grad():

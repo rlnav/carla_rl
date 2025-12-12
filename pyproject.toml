@@ -1,7 +1,7 @@
 [project]
-name = "carla-navigation"
+name = "carla-rl"
 version = "0.1.0"
-description = "CARLA navigation"
+description = "CARLA reinforcement learning"
 requires-python = ">=3.8"
 dependencies = [
     "setuptools",

@@ -1,3 +1,3 @@
 #! /bin/bash
 
-./CarlaUnreal.sh CarlaUnreal -benchmark -fps=10 -RenderOffScreen -quality-level=Low -ResizableBar=0
+./CarlaUnreal.sh -benchmark -fps=10 -RenderOffScreen -quality-level=Low -ResizableBar=0 -nosound

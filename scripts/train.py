@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import cv2
 import os
+import logging
 import random
 import time
 import numpy as np
@@ -9,14 +11,18 @@ from threading import Thread
 
 import torch
 
-from carla_navigation.src.config import *
-from carla_navigation.src.environment import CarEnv
-from carla_navigation.src.agent import DQNAgent
+from carla_rl.src.config import *
+from carla_rl.src.environment import CarEnv
+from carla_rl.src.agent import DQNAgent
+
+
+logging.basicConfig(level="DEBUG")
+logger = logging.getLogger(name="carla_rl")
 
 
 if __name__ == "__main__":
-    FPS = 20
-    ep_rewards = [-200]
+    FPS = 10
+    ep_rewards = [MIN_REWARD]
 
     random.seed(1)
     np.random.seed(1)
@@ -31,11 +37,12 @@ if __name__ == "__main__":
 
     trainer_thread = Thread(target=agent.train_in_loop, daemon=True)
     trainer_thread.start()
+    logger.debug("Started training process")
 
     while not agent.training_initialized:
         time.sleep(0.01)
-
-    agent.get_qs(np.ones((env.im_height, env.im_width, 3)))
+    agent.get_qs(np.ones((env.img_height, env.img_width, 3)))
+    logger.debug("Initialized agent")
 
     for episode in tqdm(range(1, EPISODES + 1), unit="episodes"):
         env.collision_hist = []
@@ -48,25 +55,36 @@ if __name__ == "__main__":
 
         while True:
             if np.random.random() > epsilon:
-                action = np.argmax(agent.get_qs(current_state))
+                q_values = agent.get_qs(current_state)
+                action = np.argmax(q_values)
+                logger.debug(f"Q values: {q_values}, action: {action}")
             else:
                 action = np.random.randint(0, 3)
-                time.sleep(1. / FPS)
+                logger.debug(f"Random action: {action}")
 
             new_state, reward, done, _  = env.step(action)
+            logger.debug(f"Step reward: {reward}")
 
             episode_reward += reward
 
             transition = (current_state, action, reward, new_state, done)
             agent.update_replay_memory(transition)
 
+            current_state = new_state.copy()
+
             step += 1
 
+            if SHOW_PREVIEW and current_state is not None:
+                cv2.imshow("Car camera", current_state)
+                cv2.waitKey(1)
+
+            time.sleep(1. / FPS)
             if done:
                 break
 
         for actor in env.actor_list:
             actor.destroy()
+        logger.debug(f"Episode reward: {episode_reward}")
 
         # Append episode reward to a list and log stats (every given number of episodes)
         ep_rewards.append(episode_reward)
