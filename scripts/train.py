@@ -21,7 +21,7 @@ logger = logging.getLogger(name="carla_rl")
 
 
 if __name__ == "__main__":
-    FPS = 10
+    FPS = 30
     ep_rewards = [MIN_REWARD]
 
     random.seed(1)
@@ -61,6 +61,7 @@ if __name__ == "__main__":
             else:
                 action = np.random.randint(0, 3)
                 logger.debug(f"Random action: {action}")
+                time.sleep(1. / FPS)
 
             new_state, reward, done, _  = env.step(action)
             logger.debug(f"Step reward: {reward}")
@@ -78,7 +79,6 @@ if __name__ == "__main__":
                 cv2.imshow("Car camera", current_state)
                 cv2.waitKey(1)
 
-            time.sleep(1. / FPS)
             if done:
                 break
 

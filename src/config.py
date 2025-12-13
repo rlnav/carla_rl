@@ -14,7 +14,7 @@ MODEL_NAME = "MobileNetV2"
 
 MIN_REWARD = -200
 
-EPISODES = 100
+EPISODES = 1_000
 
 DISCOUNT = 0.99
 epsilon = 1

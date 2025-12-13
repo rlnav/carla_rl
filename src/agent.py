@@ -21,7 +21,7 @@ class MobileNetV2DQN(nn.Module):
         super(MobileNetV2DQN, self).__init__()
         
         # Load pre-trained MobileNetV2 model
-        mobilenet = models.mobilenet_v2(pretrained=False)
+        mobilenet = models.mobilenet_v2(pretrained=True)
         
         # Use all layers except the final classification layer
         self.features = mobilenet.features
@@ -52,7 +52,7 @@ class DQNAgent:
         
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
         
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
         
         self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}-{int(time.time())}")
