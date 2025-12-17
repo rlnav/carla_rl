@@ -4,63 +4,41 @@ import random
 import time
 import numpy as np
 from collections import deque
+from datetime import datetime
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision.models as models
+from torch.utils.tensorboard import SummaryWriter
 
 from carla_rl.src.config import *
-from carla_rl.src.logging import ModifiedTensorBoard
-
-
-class MobileNetV2DQN(nn.Module):
-    """DQN model using MobileNetV2 backbone for feature extraction"""
-    
-    def __init__(self, num_actions=3):
-        super(MobileNetV2DQN, self).__init__()
-        
-        # Load pre-trained MobileNetV2 model
-        mobilenet = models.mobilenet_v2(pretrained=True)
-        
-        # Use all layers except the final classification layer
-        self.features = mobilenet.features
-        
-        # Adaptive pooling to get fixed output size
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        
-        # Q-value head
-        self.fc = nn.Linear(1280, num_actions)
-    
-    def forward(self, x):
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return x
+from carla_rl.src.critic import MobileNetV2DQN
 
 
 class DQNAgent:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # self.device = torch.device("cpu")
         
-        self.model = MobileNetV2DQN(num_actions=3).to(self.device)
+        self.policy_model = MobileNetV2DQN(num_actions=3).to(self.device)
         self.target_model = MobileNetV2DQN(num_actions=3).to(self.device)
-        self.target_model.load_state_dict(self.model.state_dict())
+        self.target_model.load_state_dict(self.policy_model.state_dict())
         self.target_model.eval()
         
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
         
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-        self.criterion = nn.MSELoss()
-        
-        self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}-{int(time.time())}")
+        # self.optimizer = optim.Adam(self.policy_model.parameters(), lr=0.001)
+        # self.criterion = nn.MSELoss()
+        self.optimizer = optim.AdamW(self.policy_model.parameters(), lr=3e-4, amsgrad=True)
+        self.criterion = nn.SmoothL1Loss()
+
+        self.tensorboard = SummaryWriter(log_dir=f"logs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}")
         self.target_update_counter = 0
         
         self.terminate = False
         self.last_logged_episode = 0
         self.training_initialized = False
+
+        self.step = 0
 
     def update_replay_memory(self, transition):
         # transition = (current_state, action, reward, new_state, done)
@@ -107,27 +85,43 @@ class DQNAgent:
         X = torch.FloatTensor(X).permute(0, 3, 1, 2).to(self.device)
         y = torch.FloatTensor(np.array(y)).to(self.device)
 
-        self.model.train()
+        self.policy_model.train()
         self.optimizer.zero_grad()
         
-        predictions = self.model(X)
+        predictions = self.policy_model(X)
         loss = self.criterion(predictions, y)
+
+        self.step += 1
+        # Pass a Python scalar to TensorBoard (loss.item()) and flush so the
+        # background training thread's logs appear promptly.
+        try:
+            self.tensorboard.add_scalar("loss", loss.item(), self.step)
+            self.tensorboard.flush()
+        except Exception:
+            # If writer fails for any reason, skip logging to avoid crashing training thread
+            pass
         
         loss.backward()
+        torch.nn.utils.clip_grad_value_(self.policy_model.parameters(), 100)
         self.optimizer.step()
 
-        # Update target model
-        self.target_update_counter += 1
-        if self.target_update_counter > UPDATE_TARGET_EVERY:
-            self.target_model.load_state_dict(self.model.state_dict())
-            self.target_update_counter = 0
+        # # Update target model
+        # self.target_update_counter += 1
+        # if self.target_update_counter > UPDATE_TARGET_EVERY:
+        #     self.target_model.load_state_dict(self.policy_model.state_dict())
+        #     self.target_update_counter = 0
+        target_state = self.target_model.state_dict()
+        policy_state = self.policy_model.state_dict()
+        for key in policy_state:
+            target_state[key] = policy_state[key] * TAU + target_state[key] * (1.0 - TAU)
+        self.target_model.load_state_dict(target_state)
 
     def get_qs(self, state):
         state = np.array(state) / 255.0
         state = torch.FloatTensor(state).permute(2, 0, 1).unsqueeze(0).to(self.device)
         
         with torch.no_grad():
-            qs = self.model(state)
+            qs = self.policy_model(state)
         
         return qs[0].cpu().numpy()
     
@@ -136,9 +130,9 @@ class DQNAgent:
         X = torch.randn(1, 3, IMG_HEIGHT, IMG_WIDTH).to(self.device)
         y = torch.randn(1, 3).to(self.device)
         
-        self.model.train()
+        self.policy_model.train()
         self.optimizer.zero_grad()
-        outputs = self.model(X)
+        outputs = self.policy_model(X)
         loss = self.criterion(outputs, y)
         loss.backward()
         self.optimizer.step()

@@ -21,7 +21,6 @@ logger = logging.getLogger(name="carla_rl")
 
 
 if __name__ == "__main__":
-    FPS = 30
     ep_rewards = [MIN_REWARD]
 
     random.seed(1)
@@ -46,7 +45,6 @@ if __name__ == "__main__":
 
     for episode in tqdm(range(1, EPISODES + 1), unit="episodes"):
         env.collision_hist = []
-        agent.tensorboard.step = episode
         episode_reward = 0
         step = 1
         current_state = env.reset()
@@ -89,15 +87,18 @@ if __name__ == "__main__":
         # Append episode reward to a list and log stats (every given number of episodes)
         ep_rewards.append(episode_reward)
         if not episode % AGGREGATE_STATS_EVERY or episode == 1:
-            average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:])/len(ep_rewards[-AGGREGATE_STATS_EVERY:])
+            avg_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:])/len(ep_rewards[-AGGREGATE_STATS_EVERY:])
             min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
             max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
-            agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
+            agent.tensorboard.add_scalar("metrics/reward_avg", avg_reward, episode) # reward_min=min_reward, reward_max=max_reward, epsilon=epsilon
+            agent.tensorboard.add_scalar("metrics/reward_min", min_reward, episode)
+            agent.tensorboard.add_scalar("metrics/reward_max", max_reward, episode)
+            agent.tensorboard.add_scalar("metrics/epsilon", epsilon, episode)
 
             # Save model, but only when min reward is greater or equal a set value
             if min_reward >= MIN_REWARD:
-                model_path = f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.pth'
-                torch.save(agent.model.state_dict(), model_path)
+                model_path = f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{avg_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.pth'
+                torch.save(agent.policy_model.state_dict(), model_path)
 
         # Decay epsilon
         if epsilon > MIN_EPSILON:
@@ -107,5 +108,5 @@ if __name__ == "__main__":
     # Set termination flag for training thread and wait for it to finish
     agent.terminate = True
     trainer_thread.join()
-    model_path = f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.pth'
-    torch.save(agent.model.state_dict(), model_path)
+    model_path = f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{avg_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.pth'
+    torch.save(agent.policy_model.state_dict(), model_path)

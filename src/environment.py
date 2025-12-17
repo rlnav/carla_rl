@@ -5,7 +5,6 @@ import random
 import time
 import math
 import numpy as np
-import cv2
 
 from carla_rl.src.config import *
 
@@ -99,6 +98,7 @@ class CarEnv:
 
         v = self.vehicle.get_velocity()
         kmh = int(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
+        info = {"velocity": v, "kmh": kmh}
 
         if len(self.collision_hist) != 0:
             done = True
@@ -113,4 +113,4 @@ class CarEnv:
         if self.episode_start + SECONDS_PER_EPISODE < time.time():
             done = True
 
-        return self.front_camera, reward, done, None
+        return self.front_camera, reward, done, info
