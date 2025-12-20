@@ -22,6 +22,7 @@ class DQNAgent:
         self.policy_model = MobileNetV2DQN(num_actions=3).to(self.device)
         self.target_model = MobileNetV2DQN(num_actions=3).to(self.device)
         self.target_model.load_state_dict(self.policy_model.state_dict())
+        self.policy_model.train()
         self.target_model.eval()
         
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
@@ -37,8 +38,6 @@ class DQNAgent:
         self.terminate = False
         self.last_logged_episode = 0
         self.training_initialized = False
-
-        self.step = 0
 
     def update_replay_memory(self, transition):
         # transition = (current_state, action, reward, new_state, done)
@@ -58,13 +57,12 @@ class DQNAgent:
         new_states = torch.FloatTensor(new_states).permute(0, 3, 1, 2).to(self.device)  # (B, C, H, W) images
 
         # Get Q values for current states
+        current_qs_list = self.policy_model(current_states)
         with torch.no_grad():
-            current_qs_list = self.model(current_states)
             future_qs_list = self.target_model(new_states)
 
         X = []
         y = []
-
         for index, transition in enumerate(minibatch):
             (current_state, action, reward, new_state, done) = transition
 
@@ -85,21 +83,10 @@ class DQNAgent:
         X = torch.FloatTensor(X).permute(0, 3, 1, 2).to(self.device)
         y = torch.FloatTensor(np.array(y)).to(self.device)
 
-        self.policy_model.train()
         self.optimizer.zero_grad()
         
         predictions = self.policy_model(X)
         loss = self.criterion(predictions, y)
-
-        self.step += 1
-        # Pass a Python scalar to TensorBoard (loss.item()) and flush so the
-        # background training thread's logs appear promptly.
-        try:
-            self.tensorboard.add_scalar("loss", loss.item(), self.step)
-            self.tensorboard.flush()
-        except Exception:
-            # If writer fails for any reason, skip logging to avoid crashing training thread
-            pass
         
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policy_model.parameters(), 100)
